@@ -46,15 +46,15 @@ fn extract_input_from_file(file_path: &str) -> Result<Vec<u32>, String> {
         .collect::<Result<Vec<_>, _>>()
 }
 
-fn part1(input: &Vec<u32>) -> u32 {
+fn part1(input: &[u32]) -> u32 {
     input.iter().unique().sum()
 }
 
-fn part2(input: &Vec<u32>) -> u32 {
+fn part2(input: &[u32]) -> u32 {
     input.iter().unique().sorted().take(20).sum()
 }
 
-fn part3(input: &Vec<u32>) -> u32 {
+fn part3(input: &[u32]) -> u32 {
     input
         .iter()
         .duplicates()

@@ -33,7 +33,7 @@ fn main() {
     }
 }
 
-fn part1(names: &Vec<String>, instructions: &Vec<Instruction>) -> String {
+fn part1(names: &[String], instructions: &[Instruction]) -> String {
     let mut current_name_index: u32 = 0;
     instructions
         .iter()
@@ -49,7 +49,7 @@ fn part1(names: &Vec<String>, instructions: &Vec<Instruction>) -> String {
     names[current_name_index as usize].clone()
 }
 
-fn part2(names: &Vec<String>, instructions: &Vec<Instruction>) -> String {
+fn part2(names: &[String], instructions: &[Instruction]) -> String {
     let mut current_name_index: u32 = 0;
     instructions
         .iter()
