@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct DeoxyribonucleicAcid {
@@ -62,36 +62,34 @@ impl Dragonduck {
             .cloned()
             .collect()
     }
+
     fn build_family(&self, dragonducks: &[Dragonduck]) -> Result<HashSet<Dragonduck>, String> {
         let mut result: HashSet<Dragonduck> = HashSet::new();
-        self.internal_build_family(dragonducks, &mut result)?;
-        Ok(result)
-    }
-
-    fn internal_build_family(
-        &self,
-        dragonducks: &[Dragonduck],
-        result: &mut HashSet<Dragonduck>,
-    ) -> Result<(), String> {
-        result.insert(self.clone());
-        if let Some(parents) = &self.parents {
-            for parent in parents {
-                if !result.iter().any(|r| r.dna.id == parent.id) {
-                    dragonducks
-                        .iter()
-                        .find(|dragonduck| dragonduck.dna.id == parent.id)
-                        .ok_or("Couldn't find parent by id")?
-                        .internal_build_family(dragonducks, result)?;
+        let mut container: VecDeque<Dragonduck> = VecDeque::from([self.clone()]);
+        while !container.is_empty() {
+            let current = container.pop_front().unwrap();
+            result.insert(current.clone());
+            if let Some(parents) = &current.parents {
+                for parent in parents {
+                    if !result.iter().any(|r| r.dna.id == parent.id) {
+                        container.push_back(
+                            dragonducks
+                                .iter()
+                                .find(|dragonduck| dragonduck.dna.id == parent.id)
+                                .ok_or("Couldn't find parent by id")?
+                                .clone(),
+                        );
+                    }
+                }
+            }
+            let children = current.find_children(dragonducks);
+            for child in children {
+                if !result.iter().any(|r| r.dna.id == child.dna.id) {
+                    container.push_back(child);
                 }
             }
         }
-        let children = self.find_children(dragonducks);
-        for child in children {
-            if !result.iter().any(|r| r.dna.id == child.dna.id) {
-                child.internal_build_family(dragonducks, result)?;
-            }
-        }
-        Ok(())
+        Ok(result)
     }
 }
 
