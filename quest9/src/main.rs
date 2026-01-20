@@ -1,7 +1,82 @@
+use std::collections::HashSet;
+
 #[derive(Debug, Clone)]
 struct DeoxyribonucleicAcid {
     id: u32,
     sequence: Vec<u8>,
+}
+
+impl DeoxyribonucleicAcid {
+    fn find_parents(
+        &self,
+        dragonducks: &[DeoxyribonucleicAcid],
+    ) -> Option<[DeoxyribonucleicAcid; 2]> {
+        for i in 0..dragonducks.len() {
+            if dragonducks[i].id == self.id {
+                continue;
+            }
+            for j in i + 1..dragonducks.len() {
+                if dragonducks[j].id == self.id {
+                    continue;
+                }
+                let parents = [&dragonducks[i], &dragonducks[j]];
+                if self.are_valid_parents(&parents) {
+                    return Some([dragonducks[i].clone(), dragonducks[j].clone()]);
+                }
+            }
+        }
+        None
+    }
+
+    fn are_valid_parents(&self, parents: &[&DeoxyribonucleicAcid; 2]) -> bool {
+        self.sequence.iter().enumerate().all(|(i, element)| {
+            *element == parents[0].sequence[i] || *element == parents[1].sequence[i]
+        })
+    }
+
+    fn count_similarity_degree(&self, parent: &DeoxyribonucleicAcid) -> usize {
+        self.sequence
+            .iter()
+            .enumerate()
+            .filter(|(i, element)| **element == parent.sequence[*i])
+            .count()
+    }
+}
+
+#[derive(Clone)]
+struct Dragonduck {
+    dna: DeoxyribonucleicAcid,
+    parents: Option<[DeoxyribonucleicAcid; 2]>,
+}
+
+impl Dragonduck {
+    fn find_children(&self, dragonducks: &[Dragonduck]) -> Vec<Dragonduck> {
+        dragonducks
+            .iter()
+            .filter(|dragonduck| {
+                dragonduck
+                    .parents
+                    .as_ref()
+                    .is_some_and(|parents| parents.iter().any(|parent| parent.id == self.dna.id))
+            })
+            .cloned()
+            .collect()
+    }
+    // fn build_family(&self, dragonducks: &[Dragonduck]) -> Result<HashSet<Dragonduck>, String> {
+    //     let mut result = HashSet::new();
+    //     if let Some(parents) = self.parents {
+    //         if !result.contains(&parents[0]) {
+    //             result.union(
+    //                 dragonducks
+    //                     .iter()
+    //                     .find(|dragonduck| dragonduck.dna.id == parents[0].id)
+    //                     .ok_or("Couldn't find dragonduck")?
+    //                     .build_family(dragonducks)
+    //                     .map_err(|e| format!("Couldn't build family", e))?,
+    //             )
+    //         }
+    //     }
+    // }
 }
 
 fn main() {
@@ -13,73 +88,63 @@ fn main() {
         Ok(input) => println!("Input1: {:?}", part1(&input)),
         Err(err) => println!("Error: {}", err),
     }
+    match extract_input_from_file("input/test2.txt") {
+        Ok(input) => println!("Test2: {}", part2(&input)),
+        Err(err) => println!("Error: {}", err),
+    }
+    match extract_input_from_file("input/input2.txt") {
+        Ok(input) => println!("Input2: {}", part2(&input)),
+        Err(err) => println!("Error: {}", err),
+    }
+    match extract_input_from_file("input/test3_1.txt") {
+        Ok(input) => println!("Test3_1: {}", part3(&input)),
+        Err(err) => println!("Error: {}", err),
+    }
+    match extract_input_from_file("input/test3_2.txt") {
+        Ok(input) => println!("Test3_2: {}", part3(&input)),
+        Err(err) => println!("Error: {}", err),
+    }
+    match extract_input_from_file("input/input3.txt") {
+        Ok(input) => println!("Input3: {}", part3(&input)),
+        Err(err) => println!("Error: {}", err),
+    }
 }
 
-fn part1(input: &[DeoxyribonucleicAcid]) -> Result<u32, String> {
-    if input.len() != 3 {
-        return Err("Input must contain exactly three DNA sequences".to_string());
-    }
-    let dnas: [DeoxyribonucleicAcid; 3] = input
-        .to_vec()
-        .try_into()
-        .map_err(|_| "Input must contain exactly three DNA sequences")?;
+fn part3(input: &[DeoxyribonucleicAcid]) -> usize {
+    let dragonducks: Vec<Dragonduck> = input
+        .iter()
+        .map(|dragonduck| Dragonduck {
+            dna: dragonduck.clone(),
+            parents: dragonduck.find_parents(input),
+        })
+        .collect();
+    let oldest_dragonducks: Vec<&Dragonduck> = dragonducks
+        .iter()
+        .filter(|dragonduck| dragonduck.parents.is_none())
+        .collect();
 
-    let child_id = part1_find_child_id(&dnas)?;
-    let child = dnas
-        .iter()
-        .find(|element| element.id == child_id)
-        .ok_or("Child not found")?;
-
-    let parent_a = dnas
-        .iter()
-        .filter(|element| element.id != child.id)
-        .min_by_key(|element| element.id)
-        .ok_or("No parent found")?;
-    let parent_b = dnas
-        .iter()
-        .filter(|element| element.id != child.id)
-        .max_by_key(|element| element.id)
-        .ok_or("No parent found")?;
-    Ok((parent_a
-        .sequence
-        .iter()
-        .enumerate()
-        .filter(|(i, parent_symbol)| **parent_symbol == child.sequence[*i])
-        .count()
-        * parent_b
-            .sequence
-            .iter()
-            .enumerate()
-            .filter(|(i, parent_symbol)| **parent_symbol == child.sequence[*i])
-            .count()) as u32)
+    todo!()
 }
 
-fn part1_find_child_id(dnas: &[DeoxyribonucleicAcid; 3]) -> Result<u32, String> {
-    let [a, b, c] = dnas;
-    let dna_sequence_len = a.sequence.len();
-    let mut possible_childs = vec![&a, &b, &c];
-    for i in 0..dna_sequence_len {
-        if possible_childs.len() == 1 {
-            break;
+fn part2(input: &[DeoxyribonucleicAcid]) -> usize {
+    input.iter().fold(0, |acc, dragonduck| {
+        if let Some(parents) = dragonduck.find_parents(input) {
+            dragonduck.count_similarity_degree(&parents[0])
+                * dragonduck.count_similarity_degree(&parents[1])
+                + acc
+        } else {
+            acc
         }
-        if possible_childs.iter().any(|element| element.id == a.id)
-            && !(a.sequence[i] == b.sequence[i] || a.sequence[i] == c.sequence[i])
-        {
-            possible_childs.retain(|element| element.id != a.id);
-        }
-        if possible_childs.iter().any(|element| element.id == b.id)
-            && !(b.sequence[i] == a.sequence[i] || b.sequence[i] == c.sequence[i])
-        {
-            possible_childs.retain(|element| element.id != b.id);
-        }
-        if possible_childs.iter().any(|element| element.id == c.id)
-            && !(c.sequence[i] == b.sequence[i] || c.sequence[i] == a.sequence[i])
-        {
-            possible_childs.retain(|element| element.id != c.id);
-        }
-    }
-    let child = possible_childs.first().ok_or("No child found")?;
-    Ok(child.id)
+    })
+}
+
+fn part1(input: &[DeoxyribonucleicAcid]) -> Result<usize, String> {
+    let child = input
+        .iter()
+        .find(|deoxyribonucleic_acid| deoxyribonucleic_acid.find_parents(input).is_some())
+        .ok_or("Couldn't find a valid child")?;
+    let parents = child.find_parents(input).ok_or("Couldn't find parents")?;
+    Ok(child.count_similarity_degree(&parents[0]) * child.count_similarity_degree(&parents[1]))
 }
 
 fn extract_input_from_file(file_path: &str) -> Result<Vec<DeoxyribonucleicAcid>, String> {
