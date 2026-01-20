@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct DeoxyribonucleicAcid {
     id: u32,
     sequence: Vec<u8>,
@@ -43,7 +43,7 @@ impl DeoxyribonucleicAcid {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct Dragonduck {
     dna: DeoxyribonucleicAcid,
     parents: Option<[DeoxyribonucleicAcid; 2]>,
@@ -62,21 +62,37 @@ impl Dragonduck {
             .cloned()
             .collect()
     }
-    // fn build_family(&self, dragonducks: &[Dragonduck]) -> Result<HashSet<Dragonduck>, String> {
-    //     let mut result = HashSet::new();
-    //     if let Some(parents) = self.parents {
-    //         if !result.contains(&parents[0]) {
-    //             result.union(
-    //                 dragonducks
-    //                     .iter()
-    //                     .find(|dragonduck| dragonduck.dna.id == parents[0].id)
-    //                     .ok_or("Couldn't find dragonduck")?
-    //                     .build_family(dragonducks)
-    //                     .map_err(|e| format!("Couldn't build family", e))?,
-    //             )
-    //         }
-    //     }
-    // }
+    fn build_family(&self, dragonducks: &[Dragonduck]) -> Result<HashSet<Dragonduck>, String> {
+        let mut result: HashSet<Dragonduck> = HashSet::new();
+        self.internal_build_family(dragonducks, &mut result)?;
+        Ok(result)
+    }
+
+    fn internal_build_family(
+        &self,
+        dragonducks: &[Dragonduck],
+        result: &mut HashSet<Dragonduck>,
+    ) -> Result<(), String> {
+        result.insert(self.clone());
+        if let Some(parents) = &self.parents {
+            for parent in parents {
+                if !result.iter().any(|r| r.dna.id == parent.id) {
+                    dragonducks
+                        .iter()
+                        .find(|dragonduck| dragonduck.dna.id == parent.id)
+                        .ok_or("Couldn't find parent by id")?
+                        .internal_build_family(dragonducks, result)?;
+                }
+            }
+        }
+        let children = self.find_children(dragonducks);
+        for child in children {
+            if !result.iter().any(|r| r.dna.id == child.dna.id) {
+                child.internal_build_family(dragonducks, result)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 fn main() {
@@ -97,20 +113,20 @@ fn main() {
         Err(err) => println!("Error: {}", err),
     }
     match extract_input_from_file("input/test3_1.txt") {
-        Ok(input) => println!("Test3_1: {}", part3(&input)),
+        Ok(input) => println!("Test3_1: {:?}", part3(&input)),
         Err(err) => println!("Error: {}", err),
     }
     match extract_input_from_file("input/test3_2.txt") {
-        Ok(input) => println!("Test3_2: {}", part3(&input)),
+        Ok(input) => println!("Test3_2: {:?}", part3(&input)),
         Err(err) => println!("Error: {}", err),
     }
     match extract_input_from_file("input/input3.txt") {
-        Ok(input) => println!("Input3: {}", part3(&input)),
+        Ok(input) => println!("Input3: {:?}", part3(&input)),
         Err(err) => println!("Error: {}", err),
     }
 }
 
-fn part3(input: &[DeoxyribonucleicAcid]) -> usize {
+fn part3(input: &[DeoxyribonucleicAcid]) -> Result<usize, String> {
     let dragonducks: Vec<Dragonduck> = input
         .iter()
         .map(|dragonduck| Dragonduck {
@@ -123,7 +139,13 @@ fn part3(input: &[DeoxyribonucleicAcid]) -> usize {
         .filter(|dragonduck| dragonduck.parents.is_none())
         .collect();
 
-    todo!()
+    Ok(oldest_dragonducks
+        .iter()
+        .filter_map(|od| od.build_family(&dragonducks).ok())
+        .max_by_key(|od| od.len())
+        .ok_or("No dragoduck families")?
+        .iter()
+        .fold(0, |acc, od| od.dna.id as usize + acc))
 }
 
 fn part2(input: &[DeoxyribonucleicAcid]) -> usize {
